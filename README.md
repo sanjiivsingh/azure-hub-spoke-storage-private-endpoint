@@ -197,32 +197,47 @@ Retrieve the public IP output generated after `terraform apply`:
 terraform output windows_vm_public_ip
 ```
 
-### Step 2: RDP to the Windows Workload VM
-Connect via Microsoft Remote Desktop Client:
-- **Host**: `<windows_vm_public_ip>`
-- **Username**: `adminuser`
-- **Password**: `<configured_admin_password>`
+### Step 2: Run the Automated Bash Verification Script
 
-### Step 3: Verify DNS Resolution
-Open PowerShell inside the VM and resolve the storage account FQDN:
+Execute the provided verification script from a bash terminal, jumpbox, or workload host:
 
-```powershell
-Resolve-DnsName -Name stonepsdev01.blob.core.windows.net
-```
-Expected output:
-```
-Name                                           Type   TTL   Section    IPAddress
-----                                           ----   ---   -------    ---------
-stonepsdev01.privatelink.blob.core.windows.net A      10    Answer     10.124.1.4
+```bash
+# Make script executable and run verification
+chmod +x ./scripts/verify-storage-connectivity.sh
+./scripts/verify-storage-connectivity.sh stonepsdev01 10.124.
 ```
 
-### Step 4: Verify Network Connectivity
-Test TCP port 443 connectivity to the Private Endpoint:
+### Step 3: Manual Step-by-Step Verification (Bash)
 
-```powershell
-Test-NetConnection -ComputerName stonepsdev01.blob.core.windows.net -Port 443
+#### 1. Verify Private DNS Resolution via `nslookup` / `dig`
+```bash
+nslookup stonepsdev01.blob.core.windows.net
+# Or using dig:
+dig +short stonepsdev01.blob.core.windows.net
 ```
-Expected output: `TcpTestSucceeded : True`
+**Expected Output**:
+```text
+Server:		168.63.129.16
+Address:	168.63.129.16#53
+
+Non-authoritative answer:
+stonepsdev01.blob.core.windows.net	canonical name = stonepsdev01.privatelink.blob.core.windows.net.
+Name:	stonepsdev01.privatelink.blob.core.windows.net
+Address: 10.124.1.4
+```
+
+#### 2. Test TCP Port 443 Handshake to Private Endpoint
+```bash
+# Test TCP connection on port 443 via netcat
+nc -z -v -w 5 stonepsdev01.blob.core.windows.net 443
+```
+**Expected Output**: `Connection to stonepsdev01.blob.core.windows.net 443 port [tcp/https] succeeded!`
+
+#### 3. Test HTTPS Reachability over Microsoft Private Link
+```bash
+curl -I https://stonepsdev01.blob.core.windows.net/
+```
+**Expected Output**: HTTP response (e.g., `HTTP/1.1 400 Bad Request` or `HTTP/1.1 403 Forbidden` confirming TLS termination at the Azure Storage Private Endpoint).
 
 ---
 

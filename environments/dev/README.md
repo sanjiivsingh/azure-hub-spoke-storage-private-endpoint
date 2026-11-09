@@ -162,36 +162,36 @@ terraform plan
 terraform apply -auto-approve
 ```
 
-### Verification from the Windows VM
+### Verification Guide (Bash)
 
-1. Connect to the Windows VM via RDP using the output public IP:
-   ```bash
-   mstsc /v:<WINDOWS_VM_PUBLIC_IP>
-   ```
-   - Username: `adminuser`
-   - Password: `<configured_admin_password>`
+Execute verification directly using the provided automated script or manual Bash utilities:
 
-2. In the Windows PowerShell terminal, test DNS resolution:
-   ```powershell
-   Resolve-DnsName -Name stonepsdev01.blob.core.windows.net
-   ```
-   **Expected Result**:
-   ```
-   Name                                           Type   TTL   Section    IPAddress
-   ----                                           ----   ---   -------    ---------
-   stonepsdev01.privatelink.blob.core.windows.net A      10    Answer     10.124.1.4
-   ```
+#### 1. Automated Script Execution
+```bash
+chmod +x ../../scripts/verify-storage-connectivity.sh
+../../scripts/verify-storage-connectivity.sh stonepsdev01 10.124.
+```
 
-3. Test private network connectivity over port 443 (HTTPS):
-   ```powershell
-   Test-NetConnection -ComputerName stonepsdev01.blob.core.windows.net -Port 443
-   ```
-   **Expected Result**: `TcpTestSucceeded: True`
+#### 2. Manual Verification Commands (Bash)
+```bash
+# 1. Test DNS Resolution
+nslookup stonepsdev01.blob.core.windows.net
+# Returns: stonepsdev01.privatelink.blob.core.windows.net -> 10.124.1.4
 
-4. Verify blob operations via PowerShell:
-   ```powershell
-   # Upload a test file to the private container
-   $ctx = New-AzStorageContext -StorageAccountName "stonepsdev01" -UseConnectedAccount
-   # Or using SAS / storage key within the private network
-   ```
+# 2. Test TCP Port 443 Handshake to Private Endpoint
+nc -z -v -w 5 stonepsdev01.blob.core.windows.net 443
+# Returns: Connection to stonepsdev01.blob.core.windows.net 443 port [tcp/https] succeeded!
+
+# 3. Test HTTPS Endpoint Reachability
+curl -I https://stonepsdev01.blob.core.windows.net/
+# Returns: HTTP/1.1 400 Bad Request or 403 Forbidden (verifying Private Link TLS connection)
+
+# 4. Azure CLI Blob Verification (Private Ingress)
+az storage blob upload \
+  --account-name stonepsdev01 \
+  --container-name container-oneps-dev-01 \
+  --name "test-file.txt" \
+  --data "Private Link Zero-Trust Data Access Verified" \
+  --auth-mode login
+```
 

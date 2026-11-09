@@ -30,3 +30,4 @@ We adopted the **Centralized Hub Placement** pattern:
   - *Mitigation*: Negligible compared to duplicate endpoint charges; optimized by keeping intra-region latency sub-millisecond.
 - **Subnet Policy Constraints**: Private Endpoints historically required disabling subnet network policies (`private_endpoint_network_policies = "Disabled"`).
   - *Mitigation*: Handled explicitly in the subnet child module.
+
