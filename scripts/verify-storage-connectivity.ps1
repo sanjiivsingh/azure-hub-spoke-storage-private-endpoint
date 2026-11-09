@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     End-to-end verification script for Azure Storage Private Endpoint across Hub-and-Spoke architecture.
 
@@ -172,3 +172,4 @@ if ($passCount -eq $totalTests) {
 
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
+
