@@ -2,6 +2,8 @@
 
 [![Terraform](https://img.shields.io/badge/Terraform-%3E1.9.0-844FBA?logo=terraform&logoColor=white)](https://www.terraform.io)
 [![AzureRM Provider](https://img.shields.io/badge/AzureRM-~%3E5.0-0078D4?logo=microsoftazure&logoColor=white)](https://registry.terraform.io/providers/hashicorp/azurerm/latest)
+[![Evidence: Validated](https://img.shields.io/badge/Evidence-Validated%20(3%2F3)-brightgreen.svg)](docs/EVIDENCE.md)
+[![Terraform CI](https://github.com/sanjiivsingh/azure-hub-spoke-storage-private-endpoint/actions/workflows/terraform-ci.yml/badge.svg)](https://github.com/sanjiivsingh/azure-hub-spoke-storage-private-endpoint/actions/workflows/terraform-ci.yml)
 [![Architecture](https://img.shields.io/badge/Architecture-Hub%20&%20Spoke-0078D4?logo=azuredevops&logoColor=white)](#-architecture-overview)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Security: Zero Trust](https://img.shields.io/badge/Security-Zero%20Trust%20PaaS-success.svg)](#-zero-trust-security-model)
@@ -249,7 +251,15 @@ Inside the Windows VM, open **PowerShell** as Administrator and execute the test
 .\scripts\verify-storage-connectivity.ps1 -StorageAccountName "stonepsdev01" -ExpectedSubnetPrefix "10.124.1."
 ```
 
-#### Step 4: Interpreting the Concept Test Results
+#### Step 4: Live Verification Evidence (3/3 Tests Passed)
+
+The test suite executed inside the Windows VM (`vmw-oneps-01`) confirmed complete end-to-end functionality across all layers:
+
+![Live PowerShell Verification Evidence](docs/images/verification-evidence.jpg)
+
+> 📄 **Detailed Audit & Run Transcript**: See the full execution log and architectural proof in [**`docs/EVIDENCE.md`**](docs/EVIDENCE.md).
+
+#### Step 5: Interpreting the Concept Test Results
 
 The script runs three structured tests corresponding to the architectural stages:
 
@@ -274,7 +284,7 @@ The script runs three structured tests corresponding to the architectural stages
   - An HTTP `400 Bad Request` or `403 Forbidden` from Azure Blob Storage confirms that the service received the request over Private Link (since public internet access is completely disabled: `public_network_access = "Disabled"`).
   - **Verdict**: Proves Zero-Trust network isolation is fully functioning.
 
-#### Step 5: (Optional) Test Real Blob CRUD Operations
+#### Step 6: (Optional) Test Real Blob CRUD Operations
 
 To test writing and reading real data to the private container from inside the VM:
 
@@ -292,6 +302,17 @@ Set-AzStorageBlobContent -File "$env:TEMP\test.txt" -Container "container-oneps-
 # Verify the uploaded blob exists
 Get-AzStorageBlob -Container "container-oneps-dev-01" -Context $Ctx
 ```
+
+---
+
+## 📚 Architectural Deep Dives & Operational Guides
+
+- [**docs/EVIDENCE.md**](docs/EVIDENCE.md) - Empirical execution evidence screenshot and PowerShell audit log confirming 100% pass rate.
+- [**docs/architecture.md**](docs/architecture.md) - Deep dive on Hub-and-Spoke topology, CIDR planning, and `cidrsubnet()` calculation mechanics.
+- [**docs/dns-and-private-link.md**](docs/dns-and-private-link.md) - DNS resolution chains, CNAME delegation, and Private DNS Zone Groups.
+- [**docs/security-and-best-practices.md**](docs/security-and-best-practices.md) - Zero-Trust storage access, Microsoft Entra ID RBAC roles, and TLS enforcement.
+- [**docs/troubleshooting.md**](docs/troubleshooting.md) - Operational runbook for diagnosing DNS resolution, peering routes, and KQL monitoring queries.
+- [**docs/ADR/0001-hub-and-spoke-private-endpoint-topology.md**](docs/ADR/0001-hub-and-spoke-private-endpoint-topology.md) - Architecture Decision Record on Centralized Hub placement.
 
 ---
 

@@ -94,3 +94,4 @@ Placing Private Endpoints in a dedicated subnet inside the Hub network provides 
 1. **Centralized Transit**: Shared services (Storage, Key Vault, Container Registry) can be accessed by multiple spoke networks without endpoint sprawl.
 2. **Policy Management**: Azure historically required disabling network policies (`private_endpoint_network_policies = "Disabled"`) to provision private endpoints. Isolating endpoints prevents these settings from weakening workload subnet policies.
 3. **Firewall / NVA Insertion**: A centralized hub allows future routing through Azure Firewall or an NVA via User-Defined Routes (UDRs) for deep-packet inspection if compliance mandates it.
+

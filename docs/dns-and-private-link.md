@@ -62,3 +62,4 @@ The Private DNS Zone must be linked to **every** virtual network that needs to r
 | :--- | :--- | :---: | :--- |
 | `dns-oneps-dev-link-01` | Hub VNet (`vnet-oneps-dev-hub01`) | `true` | Enables Hub workloads and the Private Endpoint itself to resolve DNS, with VM auto-registration enabled. |
 | `dns-oneps-dev-link-02` | Spoke VNet (`vnet-oneps-dev-spoke01`) | `false` | Resolution-only link. Workload VMs resolve `privatelink.blob.core.windows.net` to the private IP without polluting the zone with their own VM hostnames. |
+

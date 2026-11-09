@@ -65,3 +65,4 @@ While Storage Account shared keys allow quick initial validation, production env
 ### 4. Encryption at Rest & In Transit
 - All blob data is automatically encrypted at rest using Microsoft-managed keys (or customer-managed keys via Azure Key Vault).
 - Microsoft enforces HTTPS exclusively (`enable_https_traffic_only = true` by default in AzureRM).
+
