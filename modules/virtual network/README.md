@@ -70,3 +70,4 @@ output "hub_vnet_id" {
   value = module.virtual_network.virtual_network_output.id
 }
 ```
+

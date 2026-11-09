@@ -27,3 +27,4 @@ This directory contains 10 decoupled, enterprise-grade Terraform child modules d
 2. **Object-Based Interface**: Each module accepts a consolidated `*_config` object, preventing parameter explosion and simplifying environment-level composition via `for_each`.
 3. **Explicit Dependency Injection**: Modules do not hardcode foreign resource references; instead, values such as subnet IDs, resource group names, and DNS zone IDs are passed in from the environment layer.
 4. **Zero-Trust Hardening**: Default policies prioritize disabled public network access, private containers, and dedicated private endpoint subnets.
+

@@ -29,3 +29,4 @@ environments/
 1. **State Isolation**: Each environment maintains completely isolated state files or remote state containers, preventing cross-environment drift or accidental blast-radius leakage.
 2. **Configuration Parity**: Both `dev` and `prod` share the identical set of 10 child modules located in `../../modules/`, ensuring consistency across environments.
 3. **Parameter Variances**: Differences between `dev` and `prod` (e.g., SKU tiers, public IP enablement, redundancy levels) are driven entirely through `terraform.tfvars`.
+

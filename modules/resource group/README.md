@@ -66,3 +66,4 @@ output "rg_name" {
   value = module.resource_group.resource_group_output.name
 }
 ```
+

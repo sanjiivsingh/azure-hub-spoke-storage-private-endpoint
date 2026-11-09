@@ -194,3 +194,4 @@ terraform apply -auto-approve
    $ctx = New-AzStorageContext -StorageAccountName "stonepsdev01" -UseConnectedAccount
    # Or using SAS / storage key within the private network
    ```
+
