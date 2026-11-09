@@ -188,56 +188,112 @@ terraform apply -auto-approve
 
 ---
 
-## 🧪 Post-Deployment Verification Runbook
+## 🧪 End-to-End Concept Verification Runbook (PowerShell)
 
-### Step 1: Obtain the VM Public IP
-Retrieve the public IP output generated after `terraform apply`:
+This reference architecture provisions a **Windows Virtual Machine (`vmw-oneps-01`)** inside the Spoke VNet specifically to serve as the client test harness for verifying the entire Private Link concept.
+
+The verification script **[`scripts/verify-storage-connectivity.ps1`](scripts/verify-storage-connectivity.ps1)** validates all 4 numbered architectural milestones depicted in the architecture diagram:
+
+```mermaid
+flowchart TD
+    VM["Windows VM (vmw-oneps-01)<br/>10.125.1.4 (Spoke VNet)"]
+    
+    subgraph TestSuite["verify-storage-connectivity.ps1"]
+        T1["Test 1: DNS Resolution<br/>(Diagram Steps 1 & 2)<br/>Resolve-DnsName"]
+        T2["Test 2: VNet Peering Route<br/>(Diagram Step 3)<br/>Test-NetConnection -Port 443"]
+        T3["Test 3: Private Link Ingress<br/>(Diagram Step 4)<br/>Invoke-WebRequest (TLS 1.2+)"]
+        T4["Test 4: Blob Container CRUD<br/>Upload & Download Blobs"]
+    end
+
+    VM --> TestSuite
+    T1 -->|"Resolves to 10.124.1.4 (NOT Public IP)"| PrivDNS["Private DNS Zone"]
+    T2 -->|"Routes over Peering to Hub"| HubPE["Private Endpoint NIC"]
+    T3 -->|"Terminates at Private Link"| StorageAcct["Storage Account (Zero-Public)"]
+    T4 -->|"Encrypted Data Transfer"| Container["Private Container"]
+```
+
+---
+
+### Step-by-Step Testing Guide
+
+#### Step 1: Retrieve the VM Public IP from Terraform Output
+
+From your Terraform deployment directory, retrieve the allocated public IP:
 
 ```bash
+cd environments/dev
 terraform output windows_vm_public_ip
 ```
-
-### Step 2: Run the Automated Bash Verification Script
-
-Execute the provided verification script from a bash terminal, jumpbox, or workload host:
-
-```bash
-# Make script executable and run verification
-chmod +x ./scripts/verify-storage-connectivity.sh
-./scripts/verify-storage-connectivity.sh stonepsdev01 10.124.
+*Example output:*
+```json
+{
+  "vm1": {
+    "public_ip_address_id": "4.224.59.210"
+  }
+}
 ```
 
-### Step 3: Manual Step-by-Step Verification (Bash)
+#### Step 2: Connect to the Windows Test VM via RDP
 
-#### 1. Verify Private DNS Resolution via `nslookup` / `dig`
-```bash
-nslookup stonepsdev01.blob.core.windows.net
-# Or using dig:
-dig +short stonepsdev01.blob.core.windows.net
-```
-**Expected Output**:
-```text
-Server:		168.63.129.16
-Address:	168.63.129.16#53
+Open your Remote Desktop client (`mstsc` on Windows, or Microsoft Remote Desktop on macOS):
+- **Computer / Host**: `<windows_vm_public_ip>` (e.g., `4.224.59.210`)
+- **Username**: `adminuser`
+- **Password**: `<configured_admin_password>` (e.g., `P@ssw0rd123!`)
 
-Non-authoritative answer:
-stonepsdev01.blob.core.windows.net	canonical name = stonepsdev01.privatelink.blob.core.windows.net.
-Name:	stonepsdev01.privatelink.blob.core.windows.net
-Address: 10.124.1.4
+#### Step 3: Run the Automated PowerShell Test Suite
+
+Inside the Windows VM, open **PowerShell** as Administrator and execute the test script:
+
+```powershell
+# Run the automated verification script
+.\scripts\verify-storage-connectivity.ps1 -StorageAccountName "stonepsdev01" -ExpectedSubnetPrefix "10.124.1."
 ```
 
-#### 2. Test TCP Port 443 Handshake to Private Endpoint
-```bash
-# Test TCP connection on port 443 via netcat
-nc -z -v -w 5 stonepsdev01.blob.core.windows.net 443
-```
-**Expected Output**: `Connection to stonepsdev01.blob.core.windows.net 443 port [tcp/https] succeeded!`
+#### Step 4: Interpreting the Concept Test Results
 
-#### 3. Test HTTPS Reachability over Microsoft Private Link
-```bash
-curl -I https://stonepsdev01.blob.core.windows.net/
+The script runs three structured tests corresponding to the architectural stages:
+
+##### 1. DNS Resolution Test (Diagram Steps 1 & 2)
+- **Command executed**: `Resolve-DnsName -Name stonepsdev01.blob.core.windows.net`
+- **Concept Validated**:
+  - Proves that the Spoke VNet's Private DNS Zone Virtual Network Link is active.
+  - Resolves through the CNAME delegation (`stonepsdev01.privatelink.blob.core.windows.net`) to the private IP **`10.124.1.4`**.
+  - **Verdict**: If this returns a private IP (`10.124.*`), DNS queries never exit to public internet resolvers.
+
+##### 2. TCP Port 443 Network Routing Test (Diagram Step 3)
+- **Command executed**: `Test-NetConnection -ComputerName stonepsdev01.blob.core.windows.net -Port 443`
+- **Concept Validated**:
+  - Proves that network packets originating from `10.125.1.4` (Spoke VNet) seamlessly traverse the **Virtual Network Peering** to reach the Private Endpoint NIC in `10.124.1.0/24` (Hub VNet).
+  - Confirms Network Security Groups (NSGs) allow outbound HTTPS (port 443) traffic.
+  - **Verdict**: `TcpTestSucceeded : True` confirms bidirectional peering and route table health.
+
+##### 3. Private Link HTTPS Ingress Test (Diagram Step 4)
+- **Command executed**: `Invoke-WebRequest -Uri https://stonepsdev01.blob.core.windows.net/`
+- **Concept Validated**:
+  - Proves that the Azure Private Endpoint terminates the TLS 1.2+ handshake and routes the request directly to the Azure Storage backplane via the **Private Service Connection (`psc1`)**.
+  - An HTTP `400 Bad Request` or `403 Forbidden` from Azure Blob Storage confirms that the service received the request over Private Link (since public internet access is completely disabled: `public_network_access = "Disabled"`).
+  - **Verdict**: Proves Zero-Trust network isolation is fully functioning.
+
+#### Step 5: (Optional) Test Real Blob CRUD Operations
+
+To test writing and reading real data to the private container from inside the VM:
+
+```powershell
+# Authenticate using Storage Account Key from within the private network
+$StorageKey = "<YOUR_STORAGE_ACCOUNT_KEY>"
+$Ctx = New-AzStorageContext -StorageAccountName "stonepsdev01" -StorageAccountKey $StorageKey
+
+# Create a sample file
+"Enterprise Azure Private Link Architecture Tested Successfully!" | Out-File -FilePath "$env:TEMP\test.txt"
+
+# Upload to the private container (container-oneps-dev-01)
+Set-AzStorageBlobContent -File "$env:TEMP\test.txt" -Container "container-oneps-dev-01" -Blob "test.txt" -Context $Ctx
+
+# Verify the uploaded blob exists
+Get-AzStorageBlob -Container "container-oneps-dev-01" -Context $Ctx
 ```
-**Expected Output**: HTTP response (e.g., `HTTP/1.1 400 Bad Request` or `HTTP/1.1 403 Forbidden` confirming TLS termination at the Azure Storage Private Endpoint).
+
+---
 
 ---
 
