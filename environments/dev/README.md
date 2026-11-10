@@ -56,12 +56,15 @@ flowchart TB
 
 | File | Purpose | Key Contents |
 | :--- | :--- | :--- |
-| `version.tf` | Terraform binary and provider version constraints. | Requires Terraform `> 1.9.0` and `hashicorp/azurerm ~> 5.0`. |
+| `version.tf` | Terraform binary and provider version constraints. | Requires Terraform `~> 1.9` and `hashicorp/azurerm ~> 5.0`. |
+| `backend.tf` | Remote state backend declaration. | Defines `backend "azurerm" {}` using partial configuration. |
+| `backend.hcl` | Backend configuration variables. | Remote state container details (`onepsstorageforstate`, `dev.oneps.terraform.tfstate`). |
 | `provider.tf` | AzureRM provider configuration. | Configures provider with default features block (`features {}`). |
-| `variables.tf` | Declares all environment-level input schemas. | Definitions for project, environment, region, tags, and map configs for 10 child modules. |
-| `locals.tf` | Dynamic computations, naming standardization, and module wiring. | Prefixes, CIDR calculations using `cidrsubnet()`, and parameter mapping. |
+| `data.tf` | External data sources for secrets. | Fetches VM credentials (`vm-username`, `vm-password`) from Azure Key Vault (`onepskv`). |
+| `variables.tf` | Declares all environment-level input schemas. | Definitions for project, environment, region, tags, Key Vault details, and module map configs. |
+| `locals.tf` | Dynamic computations, naming standardization, and module wiring. | Prefixes, CIDR calculations using `cidrsubnet()`, Key Vault secret binding, and parameter mapping. |
 | `main.tf` | Module instantiation layer. | Calls each child module using `for_each = local.*`. |
-| `terraform.tfvars` | Concrete environment variable assignments. | Values targeting `central india`, `oneps`, `dev`, address spaces, and VM specifications. |
+| `terraform.tfvars` | Concrete environment variable assignments. | Values targeting `central india`, `oneps`, `dev`, address spaces, and Key Vault pointers. |
 | `outputs.tf` | Environment outputs. | Outputs the Windows VM public IP for RDP access. |
 
 ---
@@ -110,6 +113,40 @@ For `pesubnet1`:
 - Private Endpoint consumes Subnet ID from `module.subnet`, Storage Account ID from `module.storage_account`, and Private DNS Zone ID from `module.private_dns_zone`.
 - Windows VM attaches its NIC to `module.subnet["appsubnet1"].subnet_output.id`.
 
+### 4. Zero-Plaintext Secrets Management via Azure Key Vault (`data.tf`)
+To adhere to enterprise Zero-Trust security principles, sensitive credentials are no longer stored in plain text in `terraform.tfvars`.
+Instead, credentials are dynamically resolved from **Azure Key Vault** at runtime:
+
+```hcl
+data "azurerm_key_vault" "this" {
+  name                = var.key_vault_details.key_vault_name
+  resource_group_name = var.key_vault_details.resource_group_name
+}
+
+data "azurerm_key_vault_secret" "vm_username" {
+  name         = var.key_vault_details.secrets.vm_username
+  key_vault_id = data.azurerm_key_vault.this.id
+}
+
+data "azurerm_key_vault_secret" "vm_password" {
+  name         = var.key_vault_details.secrets.vm_password
+  key_vault_id = data.azurerm_key_vault.this.id
+}
+```
+
+In `locals.tf`, the secret values are injected directly into the Windows VM configuration:
+```hcl
+admin_username = data.azurerm_key_vault_secret.vm_username.value
+admin_password = data.azurerm_key_vault_secret.vm_password.value
+```
+
+### 5. Remote State Locking with Azure Blob Storage (`backend.hcl`)
+State is maintained remotely in an isolated storage container to guarantee concurrency lease locking and prevent state corruption:
+```bash
+terraform init -backend-config=backend.hcl
+```
+- Windows VM attaches its NIC to `module.subnet["appsubnet1"].subnet_output.id`.
+
 ---
 
 ## Deployed Resources in Dev
@@ -149,8 +186,8 @@ For `pesubnet1`:
 # Navigate to the dev environment
 cd environments/dev
 
-# Initialize Terraform providers and child modules
-terraform init
+# Initialize Terraform with Azure remote state backend configuration
+terraform init -backend-config=backend.hcl
 
 # Validate configuration syntax
 terraform validate

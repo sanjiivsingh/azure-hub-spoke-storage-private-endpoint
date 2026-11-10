@@ -108,3 +108,4 @@ StorageBlobLogs
 | summarize BlockedCount = count() by CallerIpAddress, StatusText, bin(TimeGenerated, 1h)
 | render timechart
 ```
+

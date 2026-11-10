@@ -135,8 +135,6 @@ virtual_machine_windows_config = {
   "vm1" = {
     vm_name_suffix    = "01"
     vm_size           = "Standard_D4_v5"
-    admin_username    = "adminuser"
-    admin_password    = "P@ssw0rd123!"
     rg_key            = "rg1"
     subnet_key        = "appsubnet1"
     public_ip_enabled = true
@@ -151,4 +149,15 @@ virtual_machine_windows_config = {
       }
     }
   }
+}
+
+# Fetch Key Vault Details and Secrets
+key_vault_details = {
+  key_vault_name      = "onepskv"
+  resource_group_name = "rg-oneps-keyvault"
+  secrets = {
+    "vm_username" = "vm-username"
+    "vm_password" = "vm-password"
+  }
+
 }

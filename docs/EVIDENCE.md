@@ -93,3 +93,4 @@ PS C:\Users\adminuser>
   - HTTP Status `400 Bad Request` returned directly by Azure Blob Storage.
 - **Architectural Proof**:
   - Because `public_network_access = "Disabled"`, requests from the public internet are rejected with HTTP 403 Forbidden. Receiving an HTTP 400 for an unauthenticated root GET request is standard Azure Blob behavior, definitively proving the request was received and processed over the Private Link backplane.
+

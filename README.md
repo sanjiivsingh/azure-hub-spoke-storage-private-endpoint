@@ -75,6 +75,8 @@ sequenceDiagram
 
 | Security Layer | Implementation Detail | Benefit |
 | :--- | :--- | :--- |
+| **Secrets Management** | Azure Key Vault (`data.tf`) | Eliminates hardcoded plain-text passwords; credentials resolved dynamically at apply time. |
+| **Remote State Security** | Azure Blob Remote Backend (`backend.hcl`) | Centralized state storage with blob lease locking and encryption at rest. |
 | **PaaS Isolation** | `public_network_access = "Disabled"` | Completely eliminates internet-routable IP addresses on the storage account. |
 | **Object Lockdown** | `allow_nested_items_to_be_public = false` | Disallows any container or blob from being set to anonymous public read. |
 | **Dedicated Subnet** | `private_endpoint_network_policies = "Disabled"` | Dedicates a clean subnet in the Hub VNet exclusively for Private Endpoints. |
@@ -120,12 +122,15 @@ This architecture is built using **10 decoupled, reusable child modules** adheri
 ├── environments/
 │   ├── dev/
 │   │   ├── main.tf                    # Root orchestrator instantiating all child modules
-│   │   ├── locals.tf                  # CAF naming prefixes and dynamic cidrsubnet() calculations
-│   │   ├── variables.tf               # Input schema definitions
+│   │   ├── locals.tf                  # CAF naming prefixes, dynamic cidrsubnet(), and secret binding
+│   │   ├── variables.tf               # Input schema definitions including Key Vault configuration
 │   │   ├── terraform.tfvars           # Concrete parameter values for dev environment
 │   │   ├── outputs.tf                 # Exports Windows VM public IP
 │   │   ├── provider.tf                # AzureRM provider configuration
-│   │   ├── version.tf                 # Terraform >=1.9.0 & AzureRM ~>5.0 constraints
+│   │   ├── backend.tf                 # Partial backend configuration block for azurerm
+│   │   ├── backend.hcl                # Remote state backend credentials (Blob storage container)
+│   │   ├── data.tf                    # Azure Key Vault data sources for VM credentials
+│   │   ├── version.tf                 # Terraform ~>1.9 & AzureRM ~>5.0 constraints
 │   │   └── README.md                  # Detailed Dev environment guide & verification runbook
 │   ├── prod/
 │   │   └── README.md                  # Production promotion blueprint & hardening recommendations
@@ -175,8 +180,8 @@ az account set --subscription "<YOUR_AZURE_SUBSCRIPTION_ID>"
 # Navigate to the development environment
 cd environments/dev
 
-# Initialize providers and local child modules
-terraform init
+# Initialize providers, child modules, and Azure remote state backend
+terraform init -backend-config=backend.hcl
 
 # Validate configuration syntax and consistency
 terraform validate

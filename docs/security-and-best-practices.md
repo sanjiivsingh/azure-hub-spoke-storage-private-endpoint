@@ -57,12 +57,18 @@ The Windows VM in `appsubnet1` is protected by a dedicated Network Security Grou
 - **Inbound**: Only authorized administration traffic (RDP over TCP 3389) is permitted. In production, this can be restricted to specific management CIDRs or replaced with Azure Bastion.
 - **Default Deny**: All other unsolicited inbound traffic from the internet or other VNets is blocked by Azure's default security rules.
 
-### 3. Transitioning from Shared Keys to Microsoft Entra ID RBAC
+### 3. Azure Key Vault Secrets Integration (Zero Plaintext Passwords)
+To eliminate credential leakage risks in source control:
+- Local administrator credentials for the Windows workload VM are stored securely in **Azure Key Vault** (`onepskv`).
+- Terraform queries these secrets dynamically at plan and apply time using `data.azurerm_key_vault_secret`.
+- Neither `admin_username` nor `admin_password` are stored as plain text inside `terraform.tfvars` or state files checked into git.
+
+### 4. Transitioning from Shared Keys to Microsoft Entra ID RBAC
 While Storage Account shared keys allow quick initial validation, production environments should enforce Entra ID authentication:
 - Assign **Storage Blob Data Contributor** to applications, managed identities, or engineering groups.
 - Set `shared_access_key_enabled = false` on the storage account resource to completely eradicate credentials exposure risks.
 
-### 4. Encryption at Rest & In Transit
+### 5. Encryption at Rest & In Transit
 - All blob data is automatically encrypted at rest using Microsoft-managed keys (or customer-managed keys via Azure Key Vault).
 - Microsoft enforces HTTPS exclusively (`enable_https_traffic_only = true` by default in AzureRM).
 

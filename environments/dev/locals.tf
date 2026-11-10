@@ -115,12 +115,12 @@ locals {
   # Virtual Machine Configuration
   virtual_machine_windows = {
     for key, value in var.virtual_machine_windows_config : key => {
-      vm_name                = "${local.vm_windows_name_prefix}-${value.vm_name_suffix}"
+      vm_name             = "${local.vm_windows_name_prefix}-${value.vm_name_suffix}"
       resource_group_name = module.resource_group[value.rg_key].resource_group_output.name
       location            = var.location
-      vm_size                = value.vm_size
-      admin_username      = value.admin_username
-      admin_password      = value.admin_password
+      vm_size             = value.vm_size
+      admin_username      = data.azurerm_key_vault_secret.vm_username.value
+      admin_password      = data.azurerm_key_vault_secret.vm_password.value
       subnet_id           = module.subnet[value.subnet_key].subnet_output.id
       public_ip_enabled   = value.public_ip_enabled
       nic_name            = "${local.vm_windows_name_prefix}-${value.vm_name_suffix}-nic"

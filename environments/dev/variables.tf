@@ -111,8 +111,6 @@ variable "virtual_machine_windows_config" {
   type = map(object({
     vm_name_suffix    = string
     vm_size           = string
-    admin_username    = string
-    admin_password    = string
     rg_key            = string
     subnet_key        = string
     public_ip_enabled = optional(bool, false)
@@ -125,4 +123,16 @@ variable "virtual_machine_windows_config" {
       destination_port_range = optional(string)
     }))
   }))
+}
+
+variable "key_vault_details" {
+  description = "Details for the Key Vault"
+  type = object({
+    key_vault_name      = string
+    resource_group_name = string
+    secrets = object({
+      vm_username = string
+      vm_password = string
+    })
+  })
 }
