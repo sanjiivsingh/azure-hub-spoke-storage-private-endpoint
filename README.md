@@ -92,8 +92,8 @@ sequenceDiagram
 | Network | Address Space | Subnet Name | CIDR | Subnet Purpose |
 | :--- | :--- | :--- | :--- | :--- |
 | **Hub VNet** | `10.124.0.0/16` | `subnet-oneps-dev-pe01` | `10.124.1.0/24` | Dedicated Private Endpoint subnet hosting `pe-oneps-dev-01` |
-| **Spoke VNet** | `10.125.0.0/16` | `subnet-oneps-dev-app01` | `10.125.1.0/24` | Workload application subnet hosting `vmw-oneps-01` |
-| **Spoke VNet** | `10.125.0.0/16` | `subnet-oneps-dev-db01` | `10.125.2.0/24` | Reserved tier for databases / backend services |
+| **Spoke VNet** | `10.125.0.0/16` | `subnet-oneps-dev-app01` | `10.125.1.0/24` | Workload application subnet hosting Windows VM (`vm-oneps-win01`) |
+| **Spoke VNet** | `10.125.0.0/16` | `subnet-oneps-dev-db01` | `10.125.2.0/24` | Database/workload subnet hosting Linux VM (`vm-oneps-lin01`) |
 
 ---
 
@@ -126,7 +126,7 @@ This architecture is built using **10 decoupled, reusable child modules** adheri
 │   │   ├── locals.tf                  # CAF naming prefixes, dynamic cidrsubnet(), and secret binding
 │   │   ├── variables.tf               # Input schema definitions including Key Vault configuration
 │   │   ├── terraform.tfvars           # Concrete parameter values for dev environment
-│   │   ├── outputs.tf                 # Exports Windows VM public IP
+│   │   ├── outputs.tf                 # Exports VM public IP address map (vm_public_ip)
 │   │   ├── provider.tf                # AzureRM provider configuration
 │   │   ├── backend.tf                 # Partial backend configuration block for azurerm
 │   │   ├── backend.hcl                # Remote state backend credentials (Blob storage container)
@@ -147,12 +147,13 @@ This architecture is built using **10 decoupled, reusable child modules** adheri
 │   ├── private dns zone/              # Child module: Azure Private DNS Zone
 │   ├── private dns zone vnet link/    # Child module: Private DNS Zone Virtual Network Link
 │   ├── private endpoint/              # Child module: Azure Private Endpoint & DNS Zone Group
-│   ├── virtual machine/               # Child module: Windows VM, NIC, Public IP & NSG
+│   ├── virtual machine/               # Child module: Multi-OS (Windows/Linux) VM, NIC, Public IP & NSG
 │   └── README.md                      # Modular design principles & module index
 │
 ├── docs/
 │   └── images/
-│       └── architecture-diagram.jpg   # Architecture diagram asset
+│       ├── architecture-diagram.jpg   # Architecture diagram asset
+│       └── verification-evidence.jpg  # Live test execution evidence screenshot
 │
 ├── .gitignore                         # Ignores .terraform/, tfstate, sensitive backups
 └── README.md                          # Project root documentation
@@ -196,15 +197,15 @@ terraform apply -auto-approve
 
 ---
 
-## 🧪 End-to-End Concept Verification Runbook (PowerShell)
+## 🧪 End-to-End Concept Verification Runbook
 
-This reference architecture provisions a **Windows Virtual Machine (`vmw-oneps-01`)** inside the Spoke VNet specifically to serve as the client test harness for verifying the entire Private Link concept.
+This reference architecture provisions workload compute nodes—a **Windows Server VM (`vm-oneps-win01`)** in `appsubnet1` and an **Ubuntu Linux VM (`vm-oneps-lin01`)** in `dbsubnet1`—inside the Spoke VNet specifically to serve as test harnesses for verifying the entire Private Link concept.
 
 The verification script **[`scripts/verify-storage-connectivity.ps1`](scripts/verify-storage-connectivity.ps1)** validates all 4 numbered architectural milestones depicted in the architecture diagram:
 
 ```mermaid
 flowchart TD
-    VM["Windows VM (vmw-oneps-01)<br/>10.125.1.4 (Spoke VNet)"]
+    VM["Workload VM (Spoke VNet)<br/>10.125.1.4 / 10.125.2.4"]
     
     subgraph TestSuite["verify-storage-connectivity.ps1"]
         T1["Test 1: DNS Resolution<br/>(Diagram Steps 1 & 2)<br/>Resolve-DnsName"]
@@ -226,7 +227,7 @@ flowchart TD
 
 #### Step 1: Retrieve the VM Public IP from Terraform Output
 
-From your Terraform deployment directory, retrieve the allocated public IP:
+From your Terraform deployment directory, inspect the deployed VM IP addresses:
 
 ```bash
 cd environments/dev
@@ -243,18 +244,24 @@ terraform output vm_public_ip
   }
 }
 ```
-*(Note: If `public_ip_enabled = false`, `vm_public_ip_address` returns `null` for zero-public private link access).*
 
-#### Step 2: Connect to the Windows Test VM via RDP
+#### Step 2: Connect to Workload Compute Nodes
 
-Open your Remote Desktop client (`mstsc` on Windows, or Microsoft Remote Desktop on macOS):
-- **Computer / Host**: `<windows_vm_public_ip>` (e.g., `4.224.59.210`)
-- **Username**: `adminuser`
-- **Password**: `<configured_admin_password>` (e.g., `P@ssw0rd123!`)
+Depending on the compute node and public IP configuration:
+
+- **Linux VM (`linux_vm_01`) via SSH**:
+  ```bash
+  ssh adminuser@<linux_vm_public_ip>
+  # Password retrieved from Key Vault
+  ```
+- **Windows VM (`windows_vm_01`) via RDP**:
+  - If `public_ip_enabled = true`: Connect directly using your Remote Desktop client (`mstsc`) to `<windows_vm_public_ip>`.
+  - If `public_ip_enabled = false`: Connect via Azure Bastion or from the peered Linux VM acting as an internal jumpbox.
+  - **Credentials**: `adminuser` / `<configured_key_vault_password>`
 
 #### Step 3: Run the Automated PowerShell Test Suite
 
-Inside the Windows VM, open **PowerShell** as Administrator and execute the test script:
+Inside the Windows VM, open **PowerShell** as Administrator and execute the test suite:
 
 ```powershell
 # Run the automated verification script
@@ -263,7 +270,7 @@ Inside the Windows VM, open **PowerShell** as Administrator and execute the test
 
 #### Step 4: Live Verification Evidence (3/3 Tests Passed)
 
-The test suite executed inside the Windows VM (`vmw-oneps-01`) confirmed complete end-to-end functionality across all layers:
+The test suite executed inside the Windows workload VM confirmed complete end-to-end functionality across all architectural layers:
 
 ![Live PowerShell Verification Evidence](docs/images/verification-evidence.jpg)
 
@@ -323,8 +330,6 @@ Get-AzStorageBlob -Container "container-oneps-dev-01" -Context $Ctx
 - [**docs/security-and-best-practices.md**](docs/security-and-best-practices.md) - Zero-Trust storage access, Microsoft Entra ID RBAC roles, and TLS enforcement.
 - [**docs/troubleshooting.md**](docs/troubleshooting.md) - Operational runbook for diagnosing DNS resolution, peering routes, and KQL monitoring queries.
 - [**docs/ADR/0001-hub-and-spoke-private-endpoint-topology.md**](docs/ADR/0001-hub-and-spoke-private-endpoint-topology.md) - Architecture Decision Record on Centralized Hub placement.
-
----
 
 ---
 
