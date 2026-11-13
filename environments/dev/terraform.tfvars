@@ -1,6 +1,6 @@
 environment = "dev"
 project     = "oneps"
-location    = "central india"
+location    = "east us"
 
 # Tags
 tags = {
@@ -20,7 +20,7 @@ storage_account_config = {
   "storage_account1" = {
     name_suffix                     = "01"
     rg_key                          = "rg1"
-    public_network_access           = "Disabled"
+    public_network_access           = "Enabled"
     allow_nested_items_to_be_public = false
   }
 }
@@ -137,7 +137,7 @@ virtual_machine_windows_config = {
     vm_size           = "Standard_D4_v5"
     rg_key            = "rg1"
     subnet_key        = "appsubnet1"
-    public_ip_enabled = true
+    public_ip_enabled = false
     nsg_rules = {
       "rdp" = {
         name                   = "RDP"

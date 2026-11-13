@@ -7,12 +7,12 @@ resource "azurerm_network_interface" "this" {
     name                          = "internal"
     subnet_id                     = var.virtual_machine_windows_config.subnet_id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = var.virtual_machine_windows_config.public_ip_enabled == true ? azurerm_public_ip.this[0].id : null
+    public_ip_address_id          = var.virtual_machine_windows_config.public_ip_enabled ? azurerm_public_ip.this[0].id : null
   }
 }
 
 resource "azurerm_public_ip" "this" {
-  count               = var.virtual_machine_windows_config.public_ip_enabled == true ? 1 : 0
+  count               = var.virtual_machine_windows_config.public_ip_enabled ? 1 : 0
   name                = "${var.virtual_machine_windows_config.vm_name}-public-ip"
   location            = var.virtual_machine_windows_config.location
   resource_group_name = var.virtual_machine_windows_config.resource_group_name
@@ -50,7 +50,7 @@ resource "azurerm_network_security_group" "this" {
 
   dynamic "security_rule" {
     iterator = rule
-    for_each = var.virtual_machine_windows_config.nsg_rules
+    for_each = var.virtual_machine_windows_config.nsg_rules 
 
     content {
       name                       = rule.value.name

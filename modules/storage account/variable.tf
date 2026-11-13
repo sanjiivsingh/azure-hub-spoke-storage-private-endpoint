@@ -6,7 +6,7 @@ variable "storage_account_config" {
         resource_group_name = string
         account_tier = string
         account_replication_type = string
-        public_network_access = optional(string)
-        allow_nested_items_to_be_public = optional(bool)
+        public_network_access = optional(string, "Enabled")
+        allow_nested_items_to_be_public = optional(bool, false)
     })
 }

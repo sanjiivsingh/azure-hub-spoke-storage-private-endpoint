@@ -75,6 +75,7 @@ sequenceDiagram
 
 | Security Layer | Implementation Detail | Benefit |
 | :--- | :--- | :--- |
+| **Region Governance** | Variable Input Validation (`allowed_locations`) | Enforces authorized deployment regions with ANSI-formatted error feedback during planning. |
 | **Secrets Management** | Azure Key Vault (`data.tf`) | Eliminates hardcoded plain-text passwords; credentials resolved dynamically at apply time. |
 | **Remote State Security** | Azure Blob Remote Backend (`backend.hcl`) | Centralized state storage with blob lease locking and encryption at rest. |
 | **PaaS Isolation** | `public_network_access = "Disabled"` | Completely eliminates internet-routable IP addresses on the storage account. |
@@ -235,10 +236,11 @@ terraform output windows_vm_public_ip
 ```json
 {
   "vm1": {
-    "public_ip_address_id": "4.224.59.210"
+    "vm_public_ip_address": "4.224.59.210"
   }
 }
 ```
+*(Note: If `public_ip_enabled = false`, `vm_public_ip_address` returns `null` for private-only access).*
 
 #### Step 2: Connect to the Windows Test VM via RDP
 

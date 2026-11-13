@@ -57,15 +57,15 @@ flowchart TB
 | File | Purpose | Key Contents |
 | :--- | :--- | :--- |
 | `version.tf` | Terraform binary and provider version constraints. | Requires Terraform `~> 1.9` and `hashicorp/azurerm ~> 5.0`. |
-| `backend.tf` | Remote state backend declaration. | Defines `backend "azurerm" {}` using partial configuration. |
+| `backend.tf` | Remote state backend declaration. | Contains commented `backend "azurerm" {}` for local testing or optional remote activation. |
 | `backend.hcl` | Backend configuration variables. | Remote state container details (`onepsstorageforstate`, `dev.oneps.terraform.tfstate`). |
 | `provider.tf` | AzureRM provider configuration. | Configures provider with default features block (`features {}`). |
 | `data.tf` | External data sources for secrets. | Fetches VM credentials (`vm-username`, `vm-password`) from Azure Key Vault (`onepskv`). |
-| `variables.tf` | Declares all environment-level input schemas. | Definitions for project, environment, region, tags, Key Vault details, and module map configs. |
+| `variables.tf` | Declares all environment-level input schemas. | Schema definitions including region governance validation (`allowed_locations`), Key Vault, and module maps. |
 | `locals.tf` | Dynamic computations, naming standardization, and module wiring. | Prefixes, CIDR calculations using `cidrsubnet()`, Key Vault secret binding, and parameter mapping. |
 | `main.tf` | Module instantiation layer. | Calls each child module using `for_each = local.*`. |
-| `terraform.tfvars` | Concrete environment variable assignments. | Values targeting `central india`, `oneps`, `dev`, address spaces, and Key Vault pointers. |
-| `outputs.tf` | Environment outputs. | Outputs the Windows VM public IP for RDP access. |
+| `terraform.tfvars` | Concrete environment variable assignments. | Values targeting environment parameters, region, address spaces, and Key Vault pointers. |
+| `outputs.tf` | Environment outputs. | Outputs `vm_public_ip_address` for the Windows VM. |
 
 ---
 
@@ -141,11 +141,37 @@ admin_password = data.azurerm_key_vault_secret.vm_password.value
 ```
 
 ### 5. Remote State Locking with Azure Blob Storage (`backend.hcl`)
-State is maintained remotely in an isolated storage container to guarantee concurrency lease locking and prevent state corruption:
+Remote state can be activated using partial configuration with `backend.hcl` to ensure concurrency lease locking and team synchronization:
 ```bash
 terraform init -backend-config=backend.hcl
 ```
-- Windows VM attaches its NIC to `module.subnet["appsubnet1"].subnet_output.id`.
+*(Note: The `backend "azurerm" {}` block in `backend.tf` can be toggled on or off depending on whether local state or remote state is desired).*
+
+### 6. Region Governance & Validation Guardrail (`variables.tf`)
+The environment enforces Azure regional placement guardrails via an explicit input validation rule on `var.location`:
+
+```hcl
+variable "location" {
+  description = "The Azure region in which to create resources"
+  type        = string
+  default     = "central india"
+  validation {
+    condition     = contains(var.allowed_locations, var.location)
+    error_message = format(
+      "\u001b[33mUnsupported Azure location.\u001b[0m \nSupported locations are:\n\u001b[32m%s\u001b[0m",
+      join(", ", var.allowed_locations)
+    )
+  }
+}
+
+variable "allowed_locations" {
+  description = "List of allowed Azure regions for resource creation"
+  type        = list(string)
+  default     = ["south India", "central india", "west india"]
+}
+```
+
+If a user specifies a region not present in `var.allowed_locations`, Terraform rejects execution during planning with a clear, colored error list of authorized regions.
 
 ---
 
@@ -201,7 +227,7 @@ terraform apply -auto-approve
 
 ### Verification Guide (PowerShell on Windows Workload VM)
 
-Because this architecture deploys a Windows Server 2016 Datacenter VM (`vmw-oneps-01`) with public IP access enabled in dev, verification is executed directly inside the VM using PowerShell.
+Because this architecture deploys a Windows Server 2016 Datacenter VM (`vmw-oneps-01`), verification is executed directly inside the VM using PowerShell. Note that when `public_ip_enabled = true`, the VM is accessible over RDP via its public IP; when `public_ip_enabled = false`, access is conducted via Azure Bastion or an internal jumpbox.
 
 #### 1. Connect to the Test VM via RDP
 ```bash

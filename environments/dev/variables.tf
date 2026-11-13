@@ -9,7 +9,22 @@ variable "project" {
 variable "location" {
   description = "The Azure region in which to create resources"
   type        = string
+  default     = "central india"
+  validation {
+    condition = contains(var.allowed_locations, var.location)
+    error_message = format(
+      "\u001b[33mUnsupported Azure location.\u001b[0m \nSupported locations are:\n\u001b[32m%s\u001b[0m",
+      join(", ", var.allowed_locations)
+    )
+  }
 }
+
+variable "allowed_locations" {
+  description = "List of allowed Azure regions for resource creation"
+  type        = list(string)
+  default     = ["south India", "central india", "west india"]
+}
+
 
 variable "tags" {
   description = "A map of tags to assign to resources"

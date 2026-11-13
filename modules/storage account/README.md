@@ -28,7 +28,7 @@ In this architecture:
 
 | Name | Description | Type | Required | Default |
 | :--- | :--- | :--- | :---: | :---: |
-| `storage_account_config` | Configuration object defining storage account parameters. | <pre>object({<br>  name                            = string<br>  location                        = string<br>  resource_group_name             = string<br>  account_tier                    = string<br>  account_replication_type        = string<br>  public_network_access           = optional(string)<br>  allow_nested_items_to_be_public = optional(bool)<br>})</pre> | **Yes** | N/A |
+| `storage_account_config` | Configuration object defining storage account parameters. | <pre>object({<br>  name                            = string<br>  location                        = string<br>  resource_group_name             = string<br>  account_tier                    = string<br>  account_replication_type        = string<br>  public_network_access           = optional(string, "Enabled")<br>  allow_nested_items_to_be_public = optional(bool, false)<br>})</pre> | **Yes** | N/A |
 
 ### Input Object Attributes
 
@@ -37,8 +37,8 @@ In this architecture:
 - `resource_group_name` (`string`): Name of the parent resource group.
 - `account_tier` (`string`): Performance tier (`Standard` or `Premium`).
 - `account_replication_type` (`string`): Redundancy option (`LRS`, `GRS`, `RAGRS`, `ZRS`, `GZRS`, `RAGZRS`).
-- `public_network_access` (`optional(string)`): Toggles public ingress (`"Enabled"` or `"Disabled"`). Set to `"Disabled"` for zero-trust private link isolation.
-- `allow_nested_items_to_be_public` (`optional(bool)`): Enforces that no blobs or containers inside the storage account can ever be publicly read (`false`).
+- `public_network_access` (`optional(string)`): Toggles public ingress (`"Enabled"` or `"Disabled"`). Defaults to `"Enabled"`. Set to `"Disabled"` for zero-trust private link isolation.
+- `allow_nested_items_to_be_public` (`optional(bool)`): Enforces that no blobs or containers inside the storage account can ever be publicly read. Defaults to `false`.
 
 ---
 
