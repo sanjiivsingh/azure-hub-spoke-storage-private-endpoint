@@ -241,14 +241,14 @@ terraform output vm_public_ip
     "vm_public_ip_address": "4.224.59.210"
   },
   "windows_vm_01": {
-    "vm_public_ip_address": null
+    "vm_public_ip_address": "4.224.59.211"
   }
 }
 ```
 
 #### Step 2: Connect to Workload Compute Nodes
 
-Depending on the compute node and public IP configuration:
+Depending on the compute node:
 
 - **Linux VM (`linux_vm_01`) via Passwordless SSH**:
   The Linux VM enforces `authentication_method = "ssh_key"`, disabling passwords and using the RSA 4096-bit public key retrieved dynamically from Azure Key Vault (`linux-vm-ssh-public-key`):
@@ -263,8 +263,7 @@ Depending on the compute node and public IP configuration:
   az keyvault secret set --vault-name "onepskv" --name "linux-vm-ssh-public-key" --file ~/.ssh/azure_vm_key.pub
   ```
 - **Windows VM (`windows_vm_01`) via RDP**:
-  - If `public_ip_enabled = true`: Connect directly using your Remote Desktop client (`mstsc`) to `<windows_vm_public_ip>`.
-  - If `public_ip_enabled = false`: Connect via Azure Bastion or from the peered Linux VM acting as an internal jumpbox.
+  With `public_ip_enabled = true`, connect directly using your Remote Desktop client (`mstsc`) to `<windows_vm_public_ip>`.
   - **Credentials**: `adminuser` / `<configured_key_vault_password>`
 
 #### Step 3: Run the Automated PowerShell Test Suite

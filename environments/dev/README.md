@@ -23,7 +23,7 @@ flowchart TB
 
         subgraph SpokeVNet["Spoke VNet: vnet-oneps-dev-spoke01 (10.125.0.0/16)"]
             subgraph AppSubnet["App Subnet: subnet-oneps-dev-app01 (10.125.1.0/24)"]
-                VM["Windows VM: vm-oneps-win01<br/>NIC IP: 10.125.1.4<br/>Public IP: Disabled (Private Only)"]
+                VM["Windows VM: vm-oneps-win01<br/>NIC IP: 10.125.1.4<br/>Public IP: Enabled (Direct RDP)"]
             end
             subgraph DBSubnet["DB Subnet: subnet-oneps-dev-db01 (10.125.2.0/24)"]
                 DB["Linux VM: vm-oneps-lin01<br/>NIC IP: 10.125.2.4<br/>Public IP: Enabled (SSH Key Auth)"]
@@ -225,8 +225,8 @@ If a user specifies a region not present in `var.allowed_locations`, Terraform r
 | **DNS VNet Link (Hub)** | `dns-oneps-dev-link-01` | Linked to Hub VNet, `registration_enabled = true` |
 | **DNS VNet Link (Spoke)** | `dns-oneps-dev-link-02` | Linked to Spoke VNet, `registration_enabled = false` |
 | **Private Endpoint** | `pe-oneps-dev-01` | Target: `stonepsdev01`, Subresource: `blob`, Subnet: `subnet-oneps-dev-pe01` |
-| **Windows VM** | `vm-oneps-win01` | SKU: `Standard_D4_v5`, OS: Windows Server 2016 Datacenter, Subnet: `appsubnet1`, Public IP: Disabled, Auth: Password (via Key Vault) |
-| **Linux VM** | `vm-oneps-lin01` | SKU: `Standard_D4_v5`, OS: Ubuntu Linux 22.04 LTS, Subnet: `dbsubnet1`, Public IP: Enabled, Auth: SSH Public Key (RSA 4096-bit via Key Vault) |
+| **Windows VM** | `vm-oneps-win01` | SKU: `Standard_D2as_v5`, OS: Windows Server 2016 Datacenter, Subnet: `appsubnet1`, Public IP: Enabled, Auth: Password (via Key Vault) |
+| **Linux VM** | `vm-oneps-lin01` | SKU: `Standard_D2s_v5`, OS: Ubuntu Linux 22.04 LTS, Subnet: `dbsubnet1`, Public IP: Enabled, Auth: SSH Public Key (RSA 4096-bit via Key Vault) |
 | **NSGs** | `vm-oneps-win01-nsg` / `vm-oneps-lin01-nsg` | Inbound RDP (3389) on Windows, Inbound SSH (22) on Linux |
 
 ---
@@ -271,16 +271,16 @@ ssh -i ~/.ssh/azure_vm_key adminuser@<LINUX_VM_PUBLIC_IP>
 ```
 
 #### 2. Connect to the Windows VM via RDP
-Because `windows_vm_01` has `public_ip_enabled = false`, connect via Azure Bastion or through the peered Linux VM acting as an internal jumpbox:
+With `public_ip_enabled = true`, connect directly to the Windows workload VM over RDP using its allocated public IP:
 ```bash
-# If public IP is enabled for temporary testing:
+# Connect directly via Remote Desktop
 mstsc /v:<WINDOWS_VM_PUBLIC_IP>
 # Username: adminuser | Password: <configured_admin_password_from_key_vault>
 ```
 
 ### Verification Guide (PowerShell on Windows Workload VM)
 
-Because this architecture deploys a Windows Server 2016 Datacenter VM (`vmw-oneps-01`), verification is executed directly inside the VM using PowerShell. Note that when `public_ip_enabled = true`, the VM is accessible over RDP via its public IP; when `public_ip_enabled = false`, access is conducted via Azure Bastion or an internal jumpbox.
+Because this architecture deploys a Windows Server 2016 Datacenter VM (`vm-oneps-win01`), verification is executed directly inside the VM using PowerShell. Because `public_ip_enabled = true`, the VM is directly accessible over RDP via its public IP.
 
 #### 1. Connect to the Test VM via RDP
 ```bash
