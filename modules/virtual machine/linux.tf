@@ -5,12 +5,20 @@ resource "azurerm_linux_virtual_machine" "this" {
   location                        = var.virtual_machine_config.location
   size                            = var.virtual_machine_config.vm_size
   admin_username                  = var.virtual_machine_config.admin_username
-  admin_password                  = var.virtual_machine_config.admin_password
-  disable_password_authentication = false
+  admin_password                  = lower(var.virtual_machine_config.authentication_method) == "password" ? var.virtual_machine_config.admin_password : null
+  disable_password_authentication = lower(var.virtual_machine_config.authentication_method) == "ssh_key" ? true : false
+
   network_interface_ids = [
     azurerm_network_interface.this.id,
   ]
+  dynamic "admin_ssh_key" {
+    for_each = lower(var.virtual_machine_config.authentication_method) == "ssh_key" ? [1] : []
 
+    content {
+      username   = var.virtual_machine_config.admin_username
+      public_key = var.virtual_machine_config.public_key
+    }
+  }
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"

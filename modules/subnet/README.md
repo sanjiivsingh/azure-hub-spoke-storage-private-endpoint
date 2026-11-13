@@ -22,8 +22,8 @@ In this architecture, three subnets are dynamically calculated and provisioned u
 | Subnet Key | Subnet Name | Parent VNet | CIDR | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
 | `pesubnet1` | `subnet-oneps-dev-pe01` | Hub (`10.124.0.0/16`) | `10.124.1.0/24` | Dedicated Private Endpoint subnet (`private_endpoint_network_policies = "Disabled"`). |
-| `appsubnet1` | `subnet-oneps-dev-app01` | Spoke (`10.125.0.0/16`) | `10.125.1.0/24` | Application tier subnet hosting the Windows VM. |
-| `dbsubnet1` | `subnet-oneps-dev-db01` | Spoke (`10.125.0.0/16`) | `10.125.2.0/24` | Reserved database/data tier subnet. |
+| `appsubnet1` | `subnet-oneps-dev-app01` | Spoke (`10.125.0.0/16`) | `10.125.1.0/24` | Application tier subnet hosting the Windows VM (`vm-oneps-win01`). |
+| `dbsubnet1` | `subnet-oneps-dev-db01` | Spoke (`10.125.0.0/16`) | `10.125.2.0/24` | Database/workload subnet hosting the Ubuntu Linux VM (`vm-oneps-lin01`). |
 
 ---
 

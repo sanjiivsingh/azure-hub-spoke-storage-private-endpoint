@@ -115,18 +115,20 @@ locals {
   # Virtual Machine Configuration
   virtual_machine_config = {
     for key, value in var.virtual_machines_config : key => {
-      vm_os               = value.vm_os
-      vm_name             = "${local.vm_name_prefix}-${value.vm_name_suffix}"
-      resource_group_name = module.resource_group[value.rg_key].resource_group_output.name
-      location            = var.location
-      vm_size             = value.vm_size
-      admin_username      = data.azurerm_key_vault_secret.vm_username.value
-      admin_password      = data.azurerm_key_vault_secret.vm_password.value
-      subnet_id           = module.subnet[value.subnet_key].subnet_output.id
-      public_ip_enabled   = value.public_ip_enabled
-      nic_name            = "${local.vm_name_prefix}-${value.vm_name_suffix}-nic"
-      nsg_name            = "${local.vm_name_prefix}-${value.vm_name_suffix}-nsg"
-      nsg_rules           = value.nsg_rules
+      vm_os                 = value.vm_os
+      vm_name               = "${local.vm_name_prefix}-${value.vm_name_suffix}"
+      resource_group_name   = module.resource_group[value.rg_key].resource_group_output.name
+      location              = var.location
+      vm_size               = value.vm_size
+      admin_username        = data.azurerm_key_vault_secret.vm_username.value
+      authentication_method = value.authentication_method
+      admin_password        = data.azurerm_key_vault_secret.vm_password[0].value
+      public_key            = data.azurerm_key_vault_secret.ssh_public_key[0].value
+      subnet_id             = module.subnet[value.subnet_key].subnet_output.id
+      public_ip_enabled     = value.public_ip_enabled
+      nic_name              = "${local.vm_name_prefix}-${value.vm_name_suffix}-nic"
+      nsg_name              = "${local.vm_name_prefix}-${value.vm_name_suffix}-nsg"
+      nsg_rules             = value.nsg_rules
     }
   }
 }

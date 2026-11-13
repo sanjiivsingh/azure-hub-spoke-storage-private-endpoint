@@ -124,12 +124,13 @@ variable "private_endpoint_config" {
 variable "virtual_machines_config" {
   description = "Configuration for the Windows virtual machine"
   type = map(object({
-    vm_os             = string
-    vm_name_suffix    = string
-    vm_size           = string
-    rg_key            = string
-    subnet_key        = string
-    public_ip_enabled = optional(bool, false)
+    vm_os                 = string
+    vm_name_suffix        = string
+    vm_size               = string
+    rg_key                = string
+    subnet_key            = string
+    public_ip_enabled     = optional(bool, false)
+    authentication_method = optional(string, "password")
     nsg_rules = map(object({
       name                   = string
       priority               = number
@@ -139,6 +140,7 @@ variable "virtual_machines_config" {
       destination_port_range = optional(string)
     }))
   }))
+
 }
 
 variable "key_vault_details" {

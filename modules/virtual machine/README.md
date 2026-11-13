@@ -51,6 +51,8 @@ variable "virtual_machine_config" {
     subnet_id                       = string
     nic_name                        = string
     disable_password_authentication = optional(bool, false)
+    authentication_method           = optional(string, "password")
+    public_key                      = optional(string)
     public_ip_enabled               = optional(bool, false)
     nsg_name                        = string
     nsg_rules = map(object({
@@ -62,6 +64,14 @@ variable "virtual_machine_config" {
       destination_port_range = optional(string, null)
     }))
   })
+
+  validation {
+    condition = contains(
+      ["password", "ssh_key"],
+      lower(var.virtual_machine_config.authentication_method)
+    )
+    error_message = "Authentication method must be either password or ssh_key."
+  }
 }
 ```
 
@@ -71,12 +81,14 @@ variable "virtual_machine_config" {
 - `vm_name` (`string`): Virtual machine host name.
 - `vm_size` (`string`): Azure VM compute SKU (e.g., `Standard_D4_v5`).
 - `admin_username` (`string`): Local administrator account username.
-- `admin_password` (`string`): Local administrator account password.
+- `admin_password` (`string`): Local administrator account password. Set to `null` automatically on Linux VMs when `authentication_method == "ssh_key"`.
+- `authentication_method` (`optional(string, "password")`): Authentication mode. Supported values are `"password"` or `"ssh_key"` (validated via `contains(["password", "ssh_key"], ...)`).
+- `public_key` (`optional(string)`): SSH public key string (e.g., RSA 4096-bit). Injected via dynamic `admin_ssh_key` block when `authentication_method == "ssh_key"`.
 - `location` (`string`): Azure region for all compute resources.
 - `resource_group_name` (`string`): Parent resource group name.
 - `subnet_id` (`string`): ARM ID of the subnet to which the NIC attaches.
 - `nic_name` (`string`): Name of the Network Interface.
-- `disable_password_authentication` (`optional(bool)`): Set to `false` for password auth on Linux (default: `false`).
+- `disable_password_authentication` (`optional(bool)`): Set automatically to `true` when `authentication_method == "ssh_key"` to enforce passwordless authentication.
 - `public_ip_enabled` (`optional(bool)`): Set to `true` to allocate a static public IP; `false` keeps the VM private-only (default: `false`).
 - `nsg_name` (`string`): Name of the Network Security Group.
 - `nsg_rules` (`map(object)`): Map of inbound/outbound firewall rules evaluated dynamically.
@@ -95,7 +107,9 @@ In the environment layer (e.g., `environments/dev`), values are **never passed r
 | `vm_name` | `locals.tf` (`${local.vm_name_prefix}-${value.vm_name_suffix}`) | Enforces Cloud Adoption Framework (CAF) naming standard (`vm-oneps-win01` / `vm-oneps-lin01`). |
 | `vm_size` | `terraform.tfvars` (`value.vm_size`) | Direct parameter (e.g., `Standard_D4_v5`). |
 | `admin_username` | `data.tf` (Azure Key Vault Secret) | Resolved dynamically via `data.azurerm_key_vault_secret.vm_username.value`. |
-| `admin_password` | `data.tf` (Azure Key Vault Secret) | Resolved dynamically via `data.azurerm_key_vault_secret.vm_password.value`. |
+| `admin_password` | `data.tf` (Azure Key Vault Secret) | Resolved dynamically via `data.azurerm_key_vault_secret.vm_password[0].value` (when `authentication_method == "password"`). |
+| `authentication_method` | `terraform.tfvars` (`value.authentication_method`) | Configured per VM (`"password"` or `"ssh_key"`). |
+| `public_key` | `data.tf` (Azure Key Vault Secret) | Resolved dynamically via `data.azurerm_key_vault_secret.ssh_public_key[0].value` (when `authentication_method == "ssh_key"`). |
 | `location` | `variables.tf` (`var.location`) | Standardized regional variable (e.g., `central india`). |
 | `resource_group_name` | `module.resource_group` output | Resolved dynamically via `module.resource_group[value.rg_key].resource_group_output.name`. |
 | `subnet_id` | `module.subnet` output | Resolved dynamically via `module.subnet[value.subnet_key].subnet_output.id`. |
@@ -112,12 +126,13 @@ In the environment layer (e.g., `environments/dev`), values are **never passed r
 ```hcl
 virtual_machines_config = {
   "windows_vm_01" = {
-    vm_os             = "windows"
-    vm_name_suffix    = "win01"
-    vm_size           = "Standard_D4_v5"
-    rg_key            = "rg1"
-    subnet_key        = "appsubnet1"
-    public_ip_enabled = false
+    vm_os                 = "windows"
+    vm_name_suffix        = "win01"
+    vm_size               = "Standard_D4_v5"
+    rg_key                = "rg1"
+    subnet_key            = "appsubnet1"
+    public_ip_enabled     = false
+    authentication_method = "password"
     nsg_rules = {
       "rdp" = {
         name                   = "RDP"
@@ -131,12 +146,13 @@ virtual_machines_config = {
   }
 
   "linux_vm_01" = {
-    vm_os             = "linux"
-    vm_name_suffix    = "lin01"
-    vm_size           = "Standard_D4_v5"
-    rg_key            = "rg1"
-    subnet_key        = "dbsubnet1"
-    public_ip_enabled = true
+    vm_os                 = "LinUX"
+    vm_name_suffix        = "lin01"
+    vm_size               = "Standard_D4_v5"
+    rg_key                = "rg1"
+    subnet_key            = "dbsubnet1"
+    public_ip_enabled     = true
+    authentication_method = "ssh_key"
     nsg_rules = {
       "ssh" = {
         name                   = "SSH"
@@ -158,18 +174,20 @@ locals {
 
   virtual_machine_config = {
     for key, value in var.virtual_machines_config : key => {
-      vm_os               = value.vm_os
-      vm_name             = "${local.vm_name_prefix}-${value.vm_name_suffix}"
-      resource_group_name = module.resource_group[value.rg_key].resource_group_output.name
-      location            = var.location
-      vm_size             = value.vm_size
-      admin_username      = data.azurerm_key_vault_secret.vm_username.value
-      admin_password      = data.azurerm_key_vault_secret.vm_password.value
-      subnet_id           = module.subnet[value.subnet_key].subnet_output.id
-      public_ip_enabled   = value.public_ip_enabled
-      nic_name            = "${local.vm_name_prefix}-${value.vm_name_suffix}-nic"
-      nsg_name            = "${local.vm_name_prefix}-${value.vm_name_suffix}-nsg"
-      nsg_rules           = value.nsg_rules
+      vm_os                 = value.vm_os
+      vm_name               = "${local.vm_name_prefix}-${value.vm_name_suffix}"
+      resource_group_name   = module.resource_group[value.rg_key].resource_group_output.name
+      location              = var.location
+      vm_size               = value.vm_size
+      admin_username        = data.azurerm_key_vault_secret.vm_username.value
+      authentication_method = value.authentication_method
+      admin_password        = data.azurerm_key_vault_secret.vm_password[0].value
+      public_key            = data.azurerm_key_vault_secret.ssh_public_key[0].value
+      subnet_id             = module.subnet[value.subnet_key].subnet_output.id
+      public_ip_enabled     = value.public_ip_enabled
+      nic_name              = "${local.vm_name_prefix}-${value.vm_name_suffix}-nic"
+      nsg_name              = "${local.vm_name_prefix}-${value.vm_name_suffix}-nsg"
+      nsg_rules             = value.nsg_rules
     }
   }
 }

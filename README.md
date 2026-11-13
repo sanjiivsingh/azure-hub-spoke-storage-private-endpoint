@@ -83,7 +83,8 @@ sequenceDiagram
 | **Dedicated Subnet** | `private_endpoint_network_policies = "Disabled"` | Dedicates a clean subnet in the Hub VNet exclusively for Private Endpoints. |
 | **Network Boundary** | Bidirectional VNet Peering | Prevents unpeered networks from accessing the Private Endpoint. |
 | **Micro-Segmentation** | Subnet segregation for App, DB, and PE | Ensures clear separation of duties between workload tiers and shared transit services. |
-| **Access Control** | Network Security Group (NSG) | Restricts inbound traffic on the VM network interface to authorized administration ports (RDP). |
+| **Access Control** | Network Security Group (NSG) | Restricts inbound traffic on the VM network interface to authorized administration ports (RDP / SSH). |
+| **SSH Key Security** | Passwordless RSA 4096-bit Public Key (`dynamic "admin_ssh_key"`) | Completely disables password authentication on Linux VMs; public key stored securely in Key Vault. |
 
 ---
 
@@ -130,7 +131,7 @@ This architecture is built using **10 decoupled, reusable child modules** adheri
 │   │   ├── provider.tf                # AzureRM provider configuration
 │   │   ├── backend.tf                 # Partial backend configuration block for azurerm
 │   │   ├── backend.hcl                # Remote state backend credentials (Blob storage container)
-│   │   ├── data.tf                    # Azure Key Vault data sources for VM credentials
+│   │   ├── data.tf                    # Azure Key Vault data sources for VM credentials & SSH public keys
 │   │   ├── version.tf                 # Terraform ~>1.9 & AzureRM ~>5.0 constraints
 │   │   └── README.md                  # Detailed Dev environment guide & verification runbook
 │   ├── prod/
@@ -249,10 +250,17 @@ terraform output vm_public_ip
 
 Depending on the compute node and public IP configuration:
 
-- **Linux VM (`linux_vm_01`) via SSH**:
+- **Linux VM (`linux_vm_01`) via Passwordless SSH**:
+  The Linux VM enforces `authentication_method = "ssh_key"`, disabling passwords and using the RSA 4096-bit public key retrieved dynamically from Azure Key Vault (`linux-vm-ssh-public-key`):
   ```bash
-  ssh adminuser@<linux_vm_public_ip>
-  # Password retrieved from Key Vault
+  ssh -i ~/.ssh/azure_vm_key adminuser@<linux_vm_public_ip>
+  ```
+  *(To provision the key pair and store it in Key Vault before deployment)*:
+  ```bash
+  ssh-keygen -t rsa -b 4096 -f ~/.ssh/azure_vm_key
+  chmod 600 ~/.ssh/azure_vm_key
+  chmod 644 ~/.ssh/azure_vm_key.pub
+  az keyvault secret set --vault-name "onepskv" --name "linux-vm-ssh-public-key" --file ~/.ssh/azure_vm_key.pub
   ```
 - **Windows VM (`windows_vm_01`) via RDP**:
   - If `public_ip_enabled = true`: Connect directly using your Remote Desktop client (`mstsc`) to `<windows_vm_public_ip>`.

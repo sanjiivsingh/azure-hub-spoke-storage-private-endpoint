@@ -24,7 +24,7 @@ flowchart LR
 | :--- | :--- | :--- | :--- |
 | **State Storage** | Local state (`terraform.tfstate`) | **Azure Remote Backend** (`azurerm` backend with Blob lease locking) | Prevents concurrent state corruption, enables team collaboration, and encrypts state at rest. |
 | **VM Ingress** | Static Public IP with RDP (Port 3389) | **Azure Bastion** or **P2S/S2S VPN** (`public_ip_enabled = false`) | Eliminates public internet attack surfaces; adheres to Microsoft Zero-Trust principles. |
-| **Secrets Management** | Passwords in `terraform.tfvars` | **Azure Key Vault** / `azurerm_key_vault_secret` | Eliminates hardcoded plain-text credentials in repository version control. |
+| **Secrets Management** | Azure Key Vault (`data.tf` secrets & SSH public key) | **Azure Key Vault with Managed Identity & Key Rotation** | Eliminates plain-text credentials and enforces automated key rotation policies. |
 | **Storage Redundancy** | Geo-Redundant (`GRS`) | **Zone-Redundant / Geo-Zone-Redundant** (`ZRS` or `GZRS`) | Protects against datacenter facility outages within an Azure availability zone. |
 | **Access Control** | Storage Account Keys / SAS | **Microsoft Entra ID (Azure AD) RBAC** + Storage Access Keys Disabled | Implements fine-grained role assignments (e.g., *Storage Blob Data Contributor*) without shared keys. |
 | **Observability** | Standard Azure metrics | **Azure Monitor Diagnostic Settings** to Log Analytics | Ingests storage read/write logs, latency metrics, and private DNS audit trails for compliance. |
@@ -71,17 +71,17 @@ tags = {
   sla         = "mission-critical"
 }
 
-# Enforce zero public IP on compute nodes
-virtual_machine_windows_config = {
-  "vm1" = {
-    vm_name_suffix    = "01"
-    vm_size           = "Standard_D4_v5"
-    admin_username    = "azureadmin"
-    admin_password    = var.vault_admin_password # Retrieved dynamically from Key Vault
-    rg_key            = "rg1"
-    subnet_key        = "appsubnet1"
-    public_ip_enabled = false # Disables public IP
-    nsg_rules         = {}
+# Enforce zero public IP and passwordless SSH key authentication
+virtual_machines_config = {
+  "vm_linux_01" = {
+    vm_os                 = "linux"
+    vm_name_suffix        = "prod01"
+    vm_size               = "Standard_D4_v5"
+    rg_key                = "rg1"
+    subnet_key            = "appsubnet1"
+    public_ip_enabled     = false # Zero public ingress in production
+    authentication_method = "ssh_key"
+    nsg_rules             = {}
   }
 }
 ```

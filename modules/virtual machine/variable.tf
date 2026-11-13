@@ -11,6 +11,8 @@ variable "virtual_machine_config" {
     subnet_id                       = string
     nic_name                        = string
     disable_password_authentication = optional(bool, false)
+    authentication_method           = optional(string, "password")
+    public_key                      = optional(string)
     public_ip_enabled               = optional(bool, false)
     nsg_name                        = string
     nsg_rules = map(object({
@@ -22,4 +24,12 @@ variable "virtual_machine_config" {
       destination_port_range = optional(string, null)
     }))
   })
+
+  validation {
+    condition = contains(
+      ["password", "ssh_key"],
+      lower(var.virtual_machine_config.authentication_method)
+    )
+    error_message = "Authentication method must be either password or ssh_key."
+  }
 }

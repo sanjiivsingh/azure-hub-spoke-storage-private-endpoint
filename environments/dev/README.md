@@ -23,10 +23,10 @@ flowchart TB
 
         subgraph SpokeVNet["Spoke VNet: vnet-oneps-dev-spoke01 (10.125.0.0/16)"]
             subgraph AppSubnet["App Subnet: subnet-oneps-dev-app01 (10.125.1.0/24)"]
-                VM["Windows VM: vmw-oneps-01<br/>NIC IP: 10.125.1.4<br/>Public IP: 4.224.59.210"]
+                VM["Windows VM: vm-oneps-win01<br/>NIC IP: 10.125.1.4<br/>Public IP: Disabled (Private Only)"]
             end
             subgraph DBSubnet["DB Subnet: subnet-oneps-dev-db01 (10.125.2.0/24)"]
-                DB["Reserved for DB Tier"]
+                DB["Linux VM: vm-oneps-lin01<br/>NIC IP: 10.125.2.4<br/>Public IP: Enabled (SSH Key Auth)"]
             end
         end
 
@@ -60,7 +60,7 @@ flowchart TB
 | `backend.tf` | Remote state backend declaration. | Contains commented `backend "azurerm" {}` for local testing or optional remote activation. |
 | `backend.hcl` | Backend configuration variables. | Remote state container details (`onepsstorageforstate`, `dev.oneps.terraform.tfstate`). |
 | `provider.tf` | AzureRM provider configuration. | Configures provider with default features block (`features {}`). |
-| `data.tf` | External data sources for secrets. | Fetches VM credentials (`vm-username`, `vm-password`) from Azure Key Vault (`onepskv`). |
+| `data.tf` | External data sources for secrets. | Fetches VM credentials (`vm-username`, `vm-password`) and Linux SSH public key (`linux-vm-ssh-public-key`) conditionally from Azure Key Vault (`onepskv`). |
 | `variables.tf` | Declares all environment-level input schemas. | Schema definitions including region governance validation (`allowed_locations`), Key Vault, and module maps. |
 | `locals.tf` | Dynamic computations, naming standardization, and module wiring. | Prefixes, CIDR calculations using `cidrsubnet()`, Key Vault secret binding, and parameter mapping. |
 | `main.tf` | Module instantiation layer. | Calls each child module using `for_each = local.*`. |
@@ -115,7 +115,7 @@ For `pesubnet1`:
 
 ### 4. Zero-Plaintext Secrets Management via Azure Key Vault (`data.tf`)
 To adhere to enterprise Zero-Trust security principles, sensitive credentials are no longer stored in plain text in `terraform.tfvars`.
-Instead, credentials are dynamically resolved from **Azure Key Vault** at runtime:
+Instead, credentials and public keys are dynamically resolved from **Azure Key Vault** at runtime using conditional queries based on each VM's `authentication_method`:
 
 ```hcl
 data "azurerm_key_vault" "this" {
@@ -129,15 +129,47 @@ data "azurerm_key_vault_secret" "vm_username" {
 }
 
 data "azurerm_key_vault_secret" "vm_password" {
+  count = anytrue([
+    for vm in values(var.virtual_machines_config) :
+    lower(vm.authentication_method) == "password"
+  ]) ? 1 : 0
   name         = var.key_vault_details.secrets.vm_password
+  key_vault_id = data.azurerm_key_vault.this.id
+}
+
+data "azurerm_key_vault_secret" "ssh_public_key" {
+  count = anytrue([
+    for vm in values(var.virtual_machines_config) :
+    lower(vm.authentication_method) == "ssh_key"
+  ]) ? 1 : 0
+  name         = "linux-vm-ssh-public-key"
   key_vault_id = data.azurerm_key_vault.this.id
 }
 ```
 
-In `locals.tf`, the secret values are injected directly into the Windows VM configuration:
+In `locals.tf`, secret values and public keys are dynamically injected into the VM configuration:
 ```hcl
-admin_username = data.azurerm_key_vault_secret.vm_username.value
-admin_password = data.azurerm_key_vault_secret.vm_password.value
+authentication_method = value.authentication_method
+admin_password        = data.azurerm_key_vault_secret.vm_password[0].value
+public_key            = data.azurerm_key_vault_secret.ssh_public_key[0].value
+```
+
+#### Out-of-Band SSH Key Pair Generation & Key Vault Storage
+For Linux compute nodes configured with `authentication_method = "ssh_key"`, generate an RSA 4096-bit key pair locally and store the public key inside the Azure Key Vault (`onepskv`):
+
+```bash
+# 1. Generate an RSA 4096-bit SSH key pair
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/azure_vm_key
+
+# 2. Set strict file permissions on private and public keys
+chmod 600 ~/.ssh/azure_vm_key
+chmod 644 ~/.ssh/azure_vm_key.pub
+
+# 3. Store the public key in Azure Key Vault as a secret
+az keyvault secret set \
+  --vault-name "onepskv" \
+  --name "linux-vm-ssh-public-key" \
+  --file ~/.ssh/azure_vm_key.pub
 ```
 
 ### 5. Remote State Locking with Azure Blob Storage (`backend.hcl`)
@@ -193,8 +225,8 @@ If a user specifies a region not present in `var.allowed_locations`, Terraform r
 | **DNS VNet Link (Hub)** | `dns-oneps-dev-link-01` | Linked to Hub VNet, `registration_enabled = true` |
 | **DNS VNet Link (Spoke)** | `dns-oneps-dev-link-02` | Linked to Spoke VNet, `registration_enabled = false` |
 | **Private Endpoint** | `pe-oneps-dev-01` | Target: `stonepsdev01`, Subresource: `blob`, Subnet: `subnet-oneps-dev-pe01` |
-| **Windows VM** | `vm-oneps-win01` | SKU: `Standard_D4_v5`, OS: Windows Server 2016 Datacenter, Subnet: `appsubnet1`, Public IP: Disabled |
-| **Linux VM** | `vm-oneps-lin01` | SKU: `Standard_D4_v5`, OS: Ubuntu Linux 22.04 LTS, Subnet: `dbsubnet1`, Public IP: Enabled |
+| **Windows VM** | `vm-oneps-win01` | SKU: `Standard_D4_v5`, OS: Windows Server 2016 Datacenter, Subnet: `appsubnet1`, Public IP: Disabled, Auth: Password (via Key Vault) |
+| **Linux VM** | `vm-oneps-lin01` | SKU: `Standard_D4_v5`, OS: Ubuntu Linux 22.04 LTS, Subnet: `dbsubnet1`, Public IP: Enabled, Auth: SSH Public Key (RSA 4096-bit via Key Vault) |
 | **NSGs** | `vm-oneps-win01-nsg` / `vm-oneps-lin01-nsg` | Inbound RDP (3389) on Windows, Inbound SSH (22) on Linux |
 
 ---
@@ -205,6 +237,7 @@ If a user specifies a region not present in `var.allowed_locations`, Terraform r
 1. Azure CLI authenticated (`az login`).
 2. Target subscription selected (`az account set --subscription <SUBSCRIPTION_ID>`).
 3. Terraform binary (`>= 1.9.0`) installed.
+4. SSH key pair created and uploaded to Key Vault (`linux-vm-ssh-public-key`).
 
 ### Execution Steps
 
@@ -223,6 +256,26 @@ terraform plan
 
 # Apply the infrastructure deployment
 terraform apply -auto-approve
+```
+
+### Workload VM Access
+
+#### 1. Connect to the Linux VM via Passwordless SSH
+The Linux VM (`vm-oneps-lin01`) has public IP enabled with password authentication disabled:
+```bash
+# Retrieve public IP from Terraform output
+terraform output vm_public_ip
+
+# Connect using the private key corresponding to the public key stored in Key Vault
+ssh -i ~/.ssh/azure_vm_key adminuser@<LINUX_VM_PUBLIC_IP>
+```
+
+#### 2. Connect to the Windows VM via RDP
+Because `windows_vm_01` has `public_ip_enabled = false`, connect via Azure Bastion or through the peered Linux VM acting as an internal jumpbox:
+```bash
+# If public IP is enabled for temporary testing:
+mstsc /v:<WINDOWS_VM_PUBLIC_IP>
+# Username: adminuser | Password: <configured_admin_password_from_key_vault>
 ```
 
 ### Verification Guide (PowerShell on Windows Workload VM)

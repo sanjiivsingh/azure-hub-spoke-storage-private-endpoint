@@ -20,8 +20,8 @@ flowchart TB
 
         subgraph Spoke["Spoke Virtual Network: 10.125.0.0/16"]
             direction TB
-            AppSubnet["Application Subnet: 10.125.1.0/24<br/>• Hosting: vmw-oneps-01 (10.125.1.4)"]
-            DBSubnet["Database Subnet: 10.125.2.0/24<br/>• Reserved for Data Tier"]
+            AppSubnet["Application Subnet: 10.125.1.0/24<br/>• Hosting: vm-oneps-win01 (10.125.1.4)"]
+            DBSubnet["Database Subnet: 10.125.2.0/24<br/>• Hosting: vm-oneps-lin01 (10.125.2.4)"]
         end
 
         subgraph PaaS["Azure PaaS Boundary"]

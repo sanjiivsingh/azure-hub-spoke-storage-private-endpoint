@@ -133,12 +133,14 @@ private_endpoint_config = {
 # Virtual Machine Configuration
 virtual_machines_config = {
   "windows_vm_01" = {
-    vm_os             = "windows"
-    vm_name_suffix    = "win01"
-    vm_size           = "Standard_D4_v5"
-    rg_key            = "rg1"
-    subnet_key        = "appsubnet1"
-    public_ip_enabled = false
+    vm_os                 = "windows"
+    vm_name_suffix        = "win01"
+    vm_size               = "Standard_D4_v5"
+    rg_key                = "rg1"
+    subnet_key            = "appsubnet1"
+    public_ip_enabled     = false
+    # Choose authentication method between "password" and "ssh_key" for a linux vm
+    authentication_method = "password" 
     nsg_rules = {
       "rdp" = {
         name                   = "RDP"
@@ -151,12 +153,14 @@ virtual_machines_config = {
     }
   }
   "linux_vm_01" = {
-    vm_os             = "LinUX"
-    vm_name_suffix    = "lin01"
-    vm_size           = "Standard_D4_v5"
-    rg_key            = "rg1"
-    subnet_key        = "dbsubnet1"
-    public_ip_enabled = true
+    vm_os                 = "LinUX"
+    vm_name_suffix        = "lin01"
+    vm_size               = "Standard_D4_v5"
+    rg_key                = "rg1"
+    subnet_key            = "dbsubnet1"
+    public_ip_enabled     = true
+    # Choose authentication method between "password" and "ssh_key" for a linux vm
+    authentication_method = "ssh_key" 
     nsg_rules = {
       "ssh" = {
         name                   = "SSH"
