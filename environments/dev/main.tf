@@ -52,9 +52,9 @@ module "private_dns_zone_vnet_link" {
   dns_zone_vnet_link_config = each.value
 }
 
-module "virtual_machine_windows" {
+module "virtual_machines" {
   source                         = "../../modules/virtual machine"
-  for_each                       = local.virtual_machine_windows
-  virtual_machine_windows_config = each.value
+  for_each                       = local.virtual_machine_config
+  virtual_machine_config = each.value
 }
 

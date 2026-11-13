@@ -9,7 +9,7 @@ locals {
   pvt_endpoint_name_prefix    = "pe-${var.project}-${var.environment}"
   vnet_peering_name_prefix    = "vnetpeering-${var.project}-${var.environment}"
   container_name_prefix       = "container-${var.project}-${var.environment}"
-  vm_windows_name_prefix      = "vmw-${var.project}"
+  vm_name_prefix              = "vm-${var.project}"
 
 
   # Resource group configuration
@@ -113,9 +113,10 @@ locals {
   }
 
   # Virtual Machine Configuration
-  virtual_machine_windows = {
-    for key, value in var.virtual_machine_windows_config : key => {
-      vm_name             = "${local.vm_windows_name_prefix}-${value.vm_name_suffix}"
+  virtual_machine_config = {
+    for key, value in var.virtual_machines_config : key => {
+      vm_os               = value.vm_os
+      vm_name             = "${local.vm_name_prefix}-${value.vm_name_suffix}"
       resource_group_name = module.resource_group[value.rg_key].resource_group_output.name
       location            = var.location
       vm_size             = value.vm_size
@@ -123,8 +124,8 @@ locals {
       admin_password      = data.azurerm_key_vault_secret.vm_password.value
       subnet_id           = module.subnet[value.subnet_key].subnet_output.id
       public_ip_enabled   = value.public_ip_enabled
-      nic_name            = "${local.vm_windows_name_prefix}-${value.vm_name_suffix}-nic"
-      nsg_name            = "${local.vm_windows_name_prefix}-${value.vm_name_suffix}-nsg"
+      nic_name            = "${local.vm_name_prefix}-${value.vm_name_suffix}-nic"
+      nsg_name            = "${local.vm_name_prefix}-${value.vm_name_suffix}-nsg"
       nsg_rules           = value.nsg_rules
     }
   }

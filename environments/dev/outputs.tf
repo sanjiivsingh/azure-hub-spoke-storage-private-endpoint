@@ -1,7 +1,7 @@
-output "windows_vm_public_ip" {
+output "vm_public_ip" {
   value = {
-    for key, value in var.virtual_machine_windows_config : key => {
-      vm_public_ip_address = value.public_ip_enabled == true ? module.virtual_machine_windows[key].vm_public_ip_output[0].ip_address : null
+    for key, value in var.virtual_machines_config : key => {
+      vm_public_ip_address = value.public_ip_enabled == true ? module.virtual_machines[key].vm_public_ip_output[0].ip_address : null
     }
   }
 }

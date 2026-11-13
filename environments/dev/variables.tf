@@ -121,9 +121,10 @@ variable "private_endpoint_config" {
   }))
 }
 
-variable "virtual_machine_windows_config" {
+variable "virtual_machines_config" {
   description = "Configuration for the Windows virtual machine"
   type = map(object({
+    vm_os             = string
     vm_name_suffix    = string
     vm_size           = string
     rg_key            = string

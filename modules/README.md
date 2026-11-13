@@ -17,7 +17,7 @@ This directory contains 10 decoupled, enterprise-grade Terraform child modules d
 | 7 | [`private dns zone`](./private%20dns%20zone/README.md) | `azurerm_private_dns_zone` | Authoritative DNS zone (`privatelink.blob.core.windows.net`) for internal name resolution. |
 | 8 | [`private dns zone vnet link`](./private%20dns%20zone%20vnet%20link/README.md) | `azurerm_private_dns_zone_virtual_network_link` | Links Private DNS zones to Hub and Spoke VNets with optional registration. |
 | 9 | [`private endpoint`](./private%20endpoint/README.md) | `azurerm_private_endpoint` | Provisions Private Endpoint with Private Service Connection and DNS Zone Group integration. |
-| 10 | [`virtual machine`](./virtual%20machine/README.md) | `azurerm_windows_virtual_machine` | Provisions Windows VM, NIC, Public IP, and NSG for workload verification. |
+| 10 | [`virtual machine`](./virtual%20machine/README.md) | `azurerm_windows_virtual_machine` / `azurerm_linux_virtual_machine` | Provisions Windows Server or Ubuntu Linux VM, NIC, Public IP, and NSG for workload verification. |
 
 ---
 

@@ -1,6 +1,6 @@
 environment = "dev"
 project     = "oneps"
-location    = "east us"
+location    = "central india"
 
 # Tags
 tags = {
@@ -131,9 +131,10 @@ private_endpoint_config = {
 }
 
 # Virtual Machine Configuration
-virtual_machine_windows_config = {
-  "vm1" = {
-    vm_name_suffix    = "01"
+virtual_machines_config = {
+  "windows_vm_01" = {
+    vm_os             = "windows"
+    vm_name_suffix    = "win01"
     vm_size           = "Standard_D4_v5"
     rg_key            = "rg1"
     subnet_key        = "appsubnet1"
@@ -146,6 +147,24 @@ virtual_machine_windows_config = {
         access                 = "Allow"
         protocol               = "Tcp"
         destination_port_range = "3389"
+      }
+    }
+  }
+  "linux_vm_01" = {
+    vm_os             = "LinUX"
+    vm_name_suffix    = "lin01"
+    vm_size           = "Standard_D4_v5"
+    rg_key            = "rg1"
+    subnet_key        = "dbsubnet1"
+    public_ip_enabled = true
+    nsg_rules = {
+      "ssh" = {
+        name                   = "SSH"
+        priority               = 300
+        direction              = "Inbound"
+        access                 = "Allow"
+        protocol               = "Tcp"
+        destination_port_range = "22"
       }
     }
   }

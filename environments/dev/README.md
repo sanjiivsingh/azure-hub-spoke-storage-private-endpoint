@@ -65,7 +65,7 @@ flowchart TB
 | `locals.tf` | Dynamic computations, naming standardization, and module wiring. | Prefixes, CIDR calculations using `cidrsubnet()`, Key Vault secret binding, and parameter mapping. |
 | `main.tf` | Module instantiation layer. | Calls each child module using `for_each = local.*`. |
 | `terraform.tfvars` | Concrete environment variable assignments. | Values targeting environment parameters, region, address spaces, and Key Vault pointers. |
-| `outputs.tf` | Environment outputs. | Outputs `vm_public_ip_address` for the Windows VM. |
+| `outputs.tf` | Environment outputs. | Outputs `vm_public_ip` map showing IP addresses for deployed VMs. |
 
 ---
 
@@ -84,7 +84,7 @@ locals {
   pvt_endpoint_name_prefix    = "pe-${var.project}-${var.environment}"
   vnet_peering_name_prefix    = "vnetpeering-${var.project}-${var.environment}"
   container_name_prefix       = "container-${var.project}-${var.environment}"
-  vm_windows_name_prefix      = "vmw-${var.project}"
+  vm_name_prefix              = "vm-${var.project}"
 }
 ```
 
@@ -111,7 +111,7 @@ For `pesubnet1`:
 - Storage Account obtains Resource Group name from `module.resource_group`.
 - Subnet obtains VNet name and Resource Group name from `module.virtual_network`.
 - Private Endpoint consumes Subnet ID from `module.subnet`, Storage Account ID from `module.storage_account`, and Private DNS Zone ID from `module.private_dns_zone`.
-- Windows VM attaches its NIC to `module.subnet["appsubnet1"].subnet_output.id`.
+- Virtual Machines attach their NICs dynamically to specified subnets (e.g. `module.subnet[value.subnet_key].subnet_output.id`).
 
 ### 4. Zero-Plaintext Secrets Management via Azure Key Vault (`data.tf`)
 To adhere to enterprise Zero-Trust security principles, sensitive credentials are no longer stored in plain text in `terraform.tfvars`.
@@ -193,9 +193,9 @@ If a user specifies a region not present in `var.allowed_locations`, Terraform r
 | **DNS VNet Link (Hub)** | `dns-oneps-dev-link-01` | Linked to Hub VNet, `registration_enabled = true` |
 | **DNS VNet Link (Spoke)** | `dns-oneps-dev-link-02` | Linked to Spoke VNet, `registration_enabled = false` |
 | **Private Endpoint** | `pe-oneps-dev-01` | Target: `stonepsdev01`, Subresource: `blob`, Subnet: `subnet-oneps-dev-pe01` |
-| **Windows VM** | `vmw-oneps-01` | SKU: `Standard_D4_v5`, OS: Windows Server 2016 Datacenter |
-| **Public IP** | `vmw-oneps-01-public-ip` | Static Public IP (e.g., `4.224.59.210`) |
-| **NSG** | `vmw-oneps-01-nsg` | Inbound TCP 3389 (RDP) allowed |
+| **Windows VM** | `vm-oneps-win01` | SKU: `Standard_D4_v5`, OS: Windows Server 2016 Datacenter, Subnet: `appsubnet1`, Public IP: Disabled |
+| **Linux VM** | `vm-oneps-lin01` | SKU: `Standard_D4_v5`, OS: Ubuntu Linux 22.04 LTS, Subnet: `dbsubnet1`, Public IP: Enabled |
+| **NSGs** | `vm-oneps-win01-nsg` / `vm-oneps-lin01-nsg` | Inbound RDP (3389) on Windows, Inbound SSH (22) on Linux |
 
 ---
 
@@ -232,7 +232,7 @@ Because this architecture deploys a Windows Server 2016 Datacenter VM (`vmw-onep
 #### 1. Connect to the Test VM via RDP
 ```bash
 # Retrieve public IP from Terraform output
-terraform output windows_vm_public_ip
+terraform output vm_public_ip
 
 # Connect via Remote Desktop
 mstsc /v:<WINDOWS_VM_PUBLIC_IP>

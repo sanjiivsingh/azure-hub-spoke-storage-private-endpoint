@@ -27,7 +27,7 @@ The infrastructure isolates the Azure Storage Account from public internet expos
 3. **Spoke Virtual Network (`10.125.0.0/16`)**:
    - Application Subnet (`subnet-oneps-dev-app01` - `10.125.1.0/24`).
    - Database Subnet (`subnet-oneps-dev-db01` - `10.125.2.0/24`).
-   - Windows Test VM (`vmw-oneps-01`) deployed in the App Subnet with static Public IP for administration and NSG allowing inbound RDP (port 3389).
+   - Multi-OS Workload Compute Nodes: Windows Server (`vm-oneps-win01` in App Subnet) and Ubuntu Linux (`vm-oneps-lin01` in DB Subnet) configured with NSG firewall rules (RDP 3389 / SSH 22).
 4. **Bidirectional VNet Peering**:
    - `hub-to-spoke`: Connects Hub VNet to Spoke VNet.
    - `spoke-to-hub`: Connects Spoke VNet to Hub VNet.
@@ -112,7 +112,7 @@ This architecture is built using **10 decoupled, reusable child modules** adheri
 | **Private DNS Zone** | [README](modules/private%20dns%20zone/README.md) | `azurerm_private_dns_zone` | Authoritative Private DNS zone (`privatelink.blob.core.windows.net`). |
 | **DNS VNet Link** | [README](modules/private%20dns%20zone%20vnet%20link/README.md) | `azurerm_private_dns_zone_virtual_network_link` | Links Private DNS zone to Hub and Spoke VNets. |
 | **Private Endpoint** | [README](modules/private%20endpoint/README.md) | `azurerm_private_endpoint` | Connects Storage Account to Hub subnet via Private Link. |
-| **Virtual Machine** | [README](modules/virtual%20machine/README.md) | `azurerm_windows_virtual_machine` | Provisions test VM, NIC, Public IP, and NSG rules. |
+| **Virtual Machine** | [README](modules/virtual%20machine/README.md) | `azurerm_windows_virtual_machine` / `azurerm_linux_virtual_machine` | Provisions multi-OS VMs (Windows/Linux), NIC, Public IP, and NSG rules. |
 
 ---
 
@@ -230,17 +230,20 @@ From your Terraform deployment directory, retrieve the allocated public IP:
 
 ```bash
 cd environments/dev
-terraform output windows_vm_public_ip
+terraform output vm_public_ip
 ```
 *Example output:*
 ```json
 {
-  "vm1": {
+  "linux_vm_01": {
     "vm_public_ip_address": "4.224.59.210"
+  },
+  "windows_vm_01": {
+    "vm_public_ip_address": null
   }
 }
 ```
-*(Note: If `public_ip_enabled = false`, `vm_public_ip_address` returns `null` for private-only access).*
+*(Note: If `public_ip_enabled = false`, `vm_public_ip_address` returns `null` for zero-public private link access).*
 
 #### Step 2: Connect to the Windows Test VM via RDP
 
